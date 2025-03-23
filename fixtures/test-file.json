@@ -1,0 +1,7 @@
+{
+  "ValString": "xyz",
+  "ValStruct": {
+    "ValString": "abc"
+  },
+  "ValSlice": ["a1", "a2"]
+}
