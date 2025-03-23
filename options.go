@@ -5,8 +5,6 @@ type config struct {
 	localFile     string
 	remoteUrlFile string
 	prefix        string
-
-	validate func(obj any) error
 }
 
 type Option func(*config)
@@ -32,11 +30,5 @@ func WithRemoteFile(fileUrl string) Option {
 func WithPrefix(prefix string) Option {
 	return func(config *config) {
 		config.prefix = prefix
-	}
-}
-
-func WithValidate(validate func(obj any) error) Option {
-	return func(config *config) {
-		config.validate = validate
 	}
 }
