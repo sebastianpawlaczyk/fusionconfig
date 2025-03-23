@@ -17,8 +17,8 @@ func SetBoolValue(v reflect.Value, value string) error {
 	return nil
 }
 
-func SetInt(val reflect.Value, value string) error {
-	intVal, err := strconv.ParseInt(value, 10, 64)
+func SetInt(val reflect.Value, value string, size int) error {
+	intVal, err := strconv.ParseInt(value, 10, size)
 	if err != nil {
 		return fmt.Errorf("failed to convert %s to int for key %s: %w", val, value, err)
 	}
@@ -26,8 +26,8 @@ func SetInt(val reflect.Value, value string) error {
 	return nil
 }
 
-func SetUint(val reflect.Value, value string) error {
-	uintVal, err := strconv.ParseUint(value, 10, 64)
+func SetUint(val reflect.Value, value string, size int) error {
+	uintVal, err := strconv.ParseUint(value, 10, size)
 	if err != nil {
 		return fmt.Errorf("failed to convert %s to uint: %w", value, err)
 	}
@@ -35,8 +35,8 @@ func SetUint(val reflect.Value, value string) error {
 	return nil
 }
 
-func SetFloat(val reflect.Value, value string) error {
-	floatVal, err := strconv.ParseFloat(value, 64)
+func SetFloat(val reflect.Value, value string, size int) error {
+	floatVal, err := strconv.ParseFloat(value, size)
 	if err != nil {
 		return fmt.Errorf("failed to convert %s to float: %w", value, err)
 	}
@@ -58,26 +58,12 @@ func SetValueWithSlice(v reflect.Value, slice string, separator string) error {
 				err = SetBoolValue(ele, data[i])
 			case reflect.String:
 				ele.SetString(data[i])
-			case reflect.Uint8:
-				err = SetUint(ele, data[i])
-			case reflect.Uint16:
-				err = SetUint(ele, data[i])
-			case reflect.Uint, reflect.Uint32:
-				err = SetUint(ele, data[i])
-			case reflect.Uint64:
-				err = SetUint(ele, data[i])
-			case reflect.Int8:
-				err = SetInt(ele, data[i])
-			case reflect.Int16:
-				err = SetInt(ele, data[i])
-			case reflect.Int, reflect.Int32:
-				err = SetInt(ele, data[i])
-			case reflect.Int64:
-				err = SetInt(ele, data[i])
-			case reflect.Float32:
-				err = SetFloat(ele, data[i])
-			case reflect.Float64:
-				err = SetFloat(ele, data[i])
+			case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint, reflect.Uint64:
+				err = SetUint(ele, data[i], ele.Type().Bits())
+			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int, reflect.Int64:
+				err = SetInt(ele, data[i], ele.Type().Bits())
+			case reflect.Float32, reflect.Float64:
+				err = SetFloat(ele, data[i], ele.Type().Bits())
 			default:
 				return fmt.Errorf("Can't support type: %s", kind.String())
 			}

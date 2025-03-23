@@ -274,38 +274,29 @@ func populateFields(val reflect.Value, configMap map[string]string, prefix strin
 		}
 
 		if value, ok := configMap[fullKey]; ok {
+			var err error
 			switch fieldVal.Kind() {
 			case reflect.String:
 				fieldVal.SetString(value)
 			case reflect.Bool:
-				err := utils.SetBoolValue(fieldVal, value)
-				if err != nil {
-					return err
-				}
+				err = utils.SetBoolValue(fieldVal, value)
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				err := utils.SetInt(fieldVal, value)
-				if err != nil {
-					return err
-				}
+				err = utils.SetInt(fieldVal, value, field.Type.Bits())
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				err := utils.SetUint(fieldVal, value)
-				if err != nil {
-					return err
-				}
+				err = utils.SetUint(fieldVal, value, field.Type.Bits())
 			case reflect.Float32, reflect.Float64:
-				err := utils.SetFloat(fieldVal, value)
-				if err != nil {
-					return err
-				}
+				err = utils.SetFloat(fieldVal, value, field.Type.Bits())
 			case reflect.Slice:
-				err := utils.SetValueWithSlice(fieldVal, value, ",")
-				if err != nil {
-					return err
-				}
+				err = utils.SetValueWithSlice(fieldVal, value, ",")
 			default:
 				return fmt.Errorf("unsupported field type: %s", fieldVal.Kind())
 			}
+
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }

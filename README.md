@@ -5,6 +5,8 @@ Library for reading configurations from three sources:
 * json local file
 * json remote file
 
+**Reading Priority:** remote file, local file, env variables
+
 ## How to use it?
 
 ```go
