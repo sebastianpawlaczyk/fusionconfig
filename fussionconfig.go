@@ -104,7 +104,15 @@ func LoadConfig(obj any, opt ...Option) error {
 
 	merge := mergeMaps(envMap, localFileMap, remoteFileMap)
 
-	return populateFields(elem, merge, cfg.prefix)
+	if err := populateFields(elem, merge, cfg.prefix); err != nil {
+		return err
+	}
+
+	if cfg.validation != nil {
+		return cfg.validation(obj)
+	}
+
+	return nil
 }
 
 func flattenKey(prefix, key string) string {
