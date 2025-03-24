@@ -1,4 +1,4 @@
-module github.com/fusionconfig
+module github.com/sp/fusionconfig
 
 go 1.23.1
 

@@ -15,7 +15,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/fusionconfig"
+	"github.com/sp/fusionconfig"
 )
 
 type AppConfiguration struct {

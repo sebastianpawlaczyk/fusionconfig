@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fusionconfig/utils"
+	"github.com/sp/fusionconfig/utils"
 )
 
 const (
