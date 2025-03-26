@@ -1,12 +1,14 @@
 package fusionconfig
 
+import "fmt"
+
 type config struct {
 	withEnv       bool
 	localFile     string
 	remoteUrlFile string
 	prefix        string
 
-	validation func(obj any) error
+	validations []func(obj any) error
 }
 
 type Option func(*config)
@@ -35,8 +37,14 @@ func WithPrefix(prefix string) Option {
 	}
 }
 
-func WithValidation(validation func(obj any) error) Option {
-	return func(config *config) {
-		config.validation = validation
+func WithValidation[T any](fn func(*T) error) Option {
+	return func(cfg *config) {
+		cfg.validations = append(cfg.validations, func(obj any) error {
+			t, ok := obj.(*T)
+			if !ok {
+				return fmt.Errorf("invalid type passed to validation: expected %T", *new(T))
+			}
+			return fn(t)
+		})
 	}
 }

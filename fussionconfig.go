@@ -20,6 +20,10 @@ const (
 	tag = "fusionconfig"
 )
 
+type Validation interface {
+	Validate() error
+}
+
 func LoadConfig(obj any, opt ...Option) error {
 	cfg := config{
 		withEnv:       true,
@@ -29,6 +33,12 @@ func LoadConfig(obj any, opt ...Option) error {
 	}
 	for _, o := range opt {
 		o(&cfg)
+	}
+
+	if v, ok := obj.(Validation); ok {
+		cfg.validations = append(cfg.validations, func(_ any) error {
+			return v.Validate()
+		})
 	}
 
 	val := reflect.ValueOf(obj)
@@ -88,8 +98,10 @@ func LoadConfig(obj any, opt ...Option) error {
 		return err
 	}
 
-	if cfg.validation != nil {
-		return cfg.validation(obj)
+	for _, v := range cfg.validations {
+		if err := v(obj); err != nil {
+			return err
+		}
 	}
 
 	return nil
