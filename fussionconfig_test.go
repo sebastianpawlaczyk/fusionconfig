@@ -34,7 +34,7 @@ type Configuration struct {
 
 func TestLoadConfig(t *testing.T) {
 	type args struct {
-		Opt []Option
+		Opt []Option[*Configuration]
 	}
 	type want struct {
 		Configuration Configuration
@@ -53,7 +53,7 @@ func TestLoadConfig(t *testing.T) {
 				setEnvs()
 			},
 			args: args{
-				Opt: []Option{},
+				Opt: []Option[*Configuration]{},
 			},
 			want: want{
 				Configuration: Configuration{
@@ -86,8 +86,8 @@ func TestLoadConfig(t *testing.T) {
 			name: "ok with local file",
 			load: func(c Configuration) {},
 			args: args{
-				Opt: []Option{
-					WithLocalFile("./fixtures/test-file.json"),
+				Opt: []Option[*Configuration]{
+					WithLocalFile[*Configuration]("./fixtures/test-file.json"),
 				},
 			},
 			want: want{
@@ -110,8 +110,8 @@ func TestLoadConfig(t *testing.T) {
 				os.Setenv("test.ValString", "abc")
 			},
 			args: args{
-				Opt: []Option{
-					WithPrefix("test"),
+				Opt: []Option[*Configuration]{
+					WithPrefix[*Configuration]("test"),
 				},
 			},
 			want: want{
@@ -158,7 +158,7 @@ func TestLoadRemoteFile(t *testing.T) {
 
 	cfg := Configuration{}
 
-	err := LoadConfig(&cfg, WithRemoteFile(ts.URL))
+	err := LoadConfig(&cfg, WithRemoteFile[*Configuration](ts.URL))
 
 	assert.NoError(t, err)
 	assert.Equal(t, "remote_value", cfg.ValString)
@@ -176,7 +176,7 @@ func TestOverrideHierarchy(t *testing.T) {
 
 	cfg = Configuration{}
 	os.Setenv("ValString", "from_env_var")
-	err = LoadConfig(&cfg, WithLocalFile("fixtures/test-file.json"))
+	err = LoadConfig(&cfg, WithLocalFile[*Configuration]("fixtures/test-file.json"))
 	assert.NoError(t, err)
 	assert.Equal(t, "xyz", cfg.ValString) // from local file
 	os.Clearenv()
@@ -195,7 +195,7 @@ func TestOverrideHierarchy(t *testing.T) {
 
 	cfg = Configuration{}
 	os.Setenv("ValString", "from_env_var")
-	err = LoadConfig(&cfg, WithLocalFile("fixtures/test-file.json"), WithRemoteFile(ts.URL))
+	err = LoadConfig(&cfg, WithLocalFile[*Configuration]("fixtures/test-file.json"), WithRemoteFile[*Configuration](ts.URL))
 	assert.NoError(t, err)
 	assert.Equal(t, "remote_value", cfg.ValString) // from remote file
 	os.Clearenv()

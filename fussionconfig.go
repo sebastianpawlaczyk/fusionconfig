@@ -20,12 +20,12 @@ const (
 	tag = "fusionconfig"
 )
 
-type Validation interface {
-	Validate() error
+type Validation[T any] interface {
+	Validate(in T) error
 }
 
-func LoadConfig(obj any, opt ...Option) error {
-	cfg := config{
+func LoadConfig[T any](obj T, opt ...Option[T]) error {
+	cfg := config[T]{
 		withEnv:       true,
 		localFile:     "",
 		remoteUrlFile: "",
@@ -35,10 +35,8 @@ func LoadConfig(obj any, opt ...Option) error {
 		o(&cfg)
 	}
 
-	if v, ok := obj.(Validation); ok {
-		cfg.validations = append(cfg.validations, func(_ any) error {
-			return v.Validate()
-		})
+	if v, ok := any(obj).(Validation[T]); ok {
+		cfg.validations = append(cfg.validations, v.Validate)
 	}
 
 	val := reflect.ValueOf(obj)
