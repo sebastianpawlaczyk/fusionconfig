@@ -9,8 +9,9 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/sp/fusionconfig/utils"
 )
@@ -18,6 +19,10 @@ import (
 const (
 	tag = "fusionconfig"
 )
+
+type Validation interface {
+	Validate() error
+}
 
 func LoadConfig(obj any, opt ...Option) error {
 	cfg := config{
@@ -28,6 +33,12 @@ func LoadConfig(obj any, opt ...Option) error {
 	}
 	for _, o := range opt {
 		o(&cfg)
+	}
+
+	if v, ok := obj.(Validation); ok {
+		cfg.validations = append(cfg.validations, func(_ any) error {
+			return v.Validate()
+		})
 	}
 
 	val := reflect.ValueOf(obj)
@@ -42,74 +53,55 @@ func LoadConfig(obj any, opt ...Option) error {
 
 	keys := getKeys(elem, cfg.prefix)
 
-	resChan := make(chan map[string]string, 1)
-	localFileChan := make(chan map[string]string, 1)
-	remoteFileChan := make(chan map[string]string, 1)
-	errChan := make(chan error, 2)
+	errGroup := errgroup.Group{}
 
-	wg := sync.WaitGroup{}
+	results := make([]map[string]string, 3)
 
 	if cfg.withEnv {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			getFromEvn(keys, resChan)
-		}()
+		errGroup.Go(func() error {
+			results[0] = getFromEvn(keys)
+			return nil
+		})
 	}
 
 	if cfg.localFile != "" {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
+		errGroup.Go(func() error {
 			res, err := getFromFile(cfg.localFile, keys)
 			if err != nil {
-				errChan <- err
-			} else {
-				localFileChan <- res
+				return err
 			}
-		}()
+
+			results[1] = res
+			return nil
+		})
 	}
 
 	if cfg.remoteUrlFile != "" {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
+		errGroup.Go(func() error {
 			res, err := getFromRemoteFile(cfg.remoteUrlFile, keys)
 			if err != nil {
-				errChan <- err
-			} else {
-				remoteFileChan <- res
+				return err
 			}
-		}()
+
+			results[2] = res
+			return nil
+		})
 	}
 
-	go func() {
-		wg.Wait()
-		close(resChan)
-		close(localFileChan)
-		close(remoteFileChan)
-		close(errChan)
-	}()
-
-	for err := range errChan {
+	if err := errGroup.Wait(); err != nil {
 		return err
 	}
 
-	envMap := <-resChan
-	localFileMap := <-localFileChan
-	remoteFileMap := <-remoteFileChan
-
-	merge := mergeMaps(envMap, localFileMap, remoteFileMap)
+	merge := mergeMaps(results[0], results[1], results[2])
 
 	if err := populateFields(elem, merge, cfg.prefix); err != nil {
 		return err
 	}
 
-	if cfg.validation != nil {
-		return cfg.validation(obj)
+	for _, v := range cfg.validations {
+		if err := v(obj); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -150,7 +142,7 @@ func getKeys(val reflect.Value, prefix string) []string {
 	return keys
 }
 
-func getFromEvn(keys []string, r chan map[string]string) {
+func getFromEvn(keys []string) map[string]string {
 	res := make(map[string]string)
 	for _, k := range keys {
 		v, ok := os.LookupEnv(k)
@@ -161,7 +153,7 @@ func getFromEvn(keys []string, r chan map[string]string) {
 		res[k] = v
 	}
 
-	r <- res
+	return res
 }
 
 func getFromFile(filePath string, keys []string) (map[string]string, error) {
