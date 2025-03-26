@@ -1,11 +1,19 @@
 package fusionconfig
 
-type config[T any] struct {
-	withEnv       bool
-	localFile     string
-	remoteUrlFile string
-	prefix        string
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
+)
 
+type config[T any] struct {
+	prefix  string
+	withEnv bool
+
+	sources     []func(keys []string) (map[string]string, error)
 	validations []func(obj T) error
 }
 
@@ -19,13 +27,68 @@ func WithEnv[T any](withEnv bool) Option[T] {
 
 func WithLocalFile[T any](filePath string) Option[T] {
 	return func(config *config[T]) {
-		config.localFile = filePath
+		config.sources = append(config.sources, func(keys []string) (map[string]string, error) {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading file %s: %w", filePath, err)
+			}
+
+			var rawData map[string]interface{}
+			if err = json.Unmarshal(data, &rawData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling JSON: %w", err)
+			}
+
+			flattened := make(map[string]string)
+			flattenMap("", rawData, flattened)
+
+			result := make(map[string]string)
+			for _, key := range keys {
+				if value, ok := flattened[key]; ok {
+					result[key] = value
+				}
+			}
+
+			return result, nil
+		})
 	}
 }
 
 func WithRemoteFile[T any](fileUrl string) Option[T] {
 	return func(config *config[T]) {
-		config.remoteUrlFile = fileUrl
+		config.sources = append(config.sources, func(keys []string) (map[string]string, error) {
+			client := http.Client{Timeout: 10 * time.Second}
+			resp, err := client.Get(fileUrl)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching remote file: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return nil, fmt.Errorf("fetch remote config error, reply status code is %d", resp.StatusCode)
+			}
+
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("error reading remote response body: %w", err)
+			}
+
+			var rawData map[string]interface{}
+			if err = json.Unmarshal(data, &rawData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling remote JSON: %w", err)
+			}
+
+			flattened := make(map[string]string)
+			flattenMap("", rawData, flattened)
+
+			result := make(map[string]string)
+			for _, key := range keys {
+				if value, ok := flattened[key]; ok {
+					result[key] = value
+				}
+			}
+
+			return result, nil
+		})
 	}
 }
 
